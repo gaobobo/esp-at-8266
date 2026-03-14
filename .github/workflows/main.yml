@@ -1,257 +1,73 @@
   
 name: C/C++ CI
 
-on:
-  push:
-    branches:
-      - master
-      - release/*
+on: 
+  workflow_dispatch:
 
 jobs:
-  build-esp8266-wroom02-at:
+  build-esp8266:
+
     runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+      contents: write
+
+    strategy:
+      matrix:
+        package:
+          - "WROOM-02"
+          - "WROOM-5V2L"
+          - "ESP8266_1MB"
+          - "WROOM-02-N"
+
     steps:
-    - uses: actions/checkout@v4.2.0
-    - name: clone esp-idf
-      env:
-        AT_OTA_TOKEN_WROOM_02_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-        AT_OTA_TOKEN_WROOM_S2_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_S2_1024_1024 }}
-        AT_OTA_TOKEN_WROOM_5V2L: ${{ secrets.AT_OTA_TOKEN_WROOM_5V2L }}
-        AT_OTA_TOKEN_ESP8266_1MB: ${{ secrets.AT_OTA_TOKEN_ESP8266_1MB }}
-        AT_OTA_TOKEN_WROOM_02_N_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-      run: |
-        cd components/at/private_include
-        rm -f at_ota_token.h
-        echo -e "#pragma once" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        cd -
+      - name: checkout repo
+        uses: actions/checkout@v4.2.0
 
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/requirements.txt
-        mkdir build
-        echo -e "{\"platform\": \"PLATFORM_ESP8266\", \"module\": \"WROOM-02\", \"silence\": 0}" > build/module_info.json
-        ./build.py reconfigure || echo "skip exception"
-      shell: bash
-    - name: Install dependencies
-      env:
-        IDF_PATH: ${{ github.workspace }}/esp-idf
-      run: |
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/esp-idf/requirements.txt
-    - name: Compiling
-      run: |
-        python ./esp-idf/tools/idf_tools.py --non-interactive install && eval "$(python ./esp-idf/tools/idf_tools.py --non-interactive export)" || exit 1
-        python ./esp-idf/tools/idf_tools.py export --prefer-system
-        ./build.py build
-        upload_dir=esp8266-wroom02-at
-        mkdir -p $upload_dir $upload_dir/bootloader $upload_dir/partition_table $upload_dir/customized_partitions $upload_dir/factory
-        cp build/flash_project_args $upload_dir/download.config
-        cp sdkconfig $upload_dir/
-        cp build/*.bin $upload_dir/
-        cp build/*.elf $upload_dir/
-        cp build/*.map $upload_dir/
-        cp build/bootloader/*.bin $upload_dir/bootloader/
-        cp build/partition_table/*.bin $upload_dir/partition_table/
-        cp build/customized_partitions/*.bin $upload_dir/customized_partitions/
-        cp build/flasher_args.json $upload_dir/
-        cp build/flash_project_args $upload_dir/download.config
-        cp build/factory/* $upload_dir/factory
-      shell: bash
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4.4.3
-      with:
-        name: esp8266-wroom02-at
-        path: esp8266-wroom02-at
+      - name: clone esp-idf
+        run: |
+          python -m pip install --user -r requirements.txt
+          mkdir build
+          echo '{"platform": "PLATFORM_ESP8266", "module": "${{matrix.package}}", "silence": 0}' > build/module_info.json
+          ./build.py reconfigure || echo "skip exception"
+        shell: bash
+      - name: Install dependencies
+        env:
+          IDF_PATH: ${{ github.workspace }}/esp-idf
+        run: |
+          python -m pip install --user -r ${{ github.workspace }}/esp-idf/requirements.txt
+      - name: Compiling
+        run: |
+          python ./esp-idf/tools/idf_tools.py --non-interactive install && eval "$(python ./esp-idf/tools/idf_tools.py --non-interactive export)" || exit 1
+          python ./esp-idf/tools/idf_tools.py export --prefer-system
+          ./build.py build
+          upload_dir=esp8266-${{matrix.package}}
+          mkdir -p $upload_dir $upload_dir/bootloader $upload_dir/partition_table $upload_dir/customized_partitions $upload_dir/factory
+          cp build/flash_project_args $upload_dir/download.config
+          cp sdkconfig $upload_dir/
+          cp build/*.bin $upload_dir/
+          cp build/*.elf $upload_dir/
+          cp build/*.map $upload_dir/
+          cp build/bootloader/*.bin $upload_dir/bootloader/
+          cp build/partition_table/*.bin $upload_dir/partition_table/
+          cp build/customized_partitions/*.bin $upload_dir/customized_partitions/
+          cp build/flasher_args.json $upload_dir/
+          cp build/flash_project_args $upload_dir/download.config
+          cp build/factory/* $upload_dir/factory
+        shell: bash
 
-  build-esp8266_wroom_5V2L_at:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4.2.0
-    - name: clone esp-idf
-      env:
-        AT_OTA_TOKEN_WROOM_02_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-        AT_OTA_TOKEN_WROOM_S2_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_S2_1024_1024 }}
-        AT_OTA_TOKEN_WROOM_5V2L: ${{ secrets.AT_OTA_TOKEN_WROOM_5V2L }}
-        AT_OTA_TOKEN_ESP8266_1MB: ${{ secrets.AT_OTA_TOKEN_ESP8266_1MB }}
-        AT_OTA_TOKEN_WROOM_02_N_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-      run: |
-        cd components/at/private_include
-        rm -f at_ota_token.h
-        echo -e "#pragma once" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        cd -
+      - name: Zip firmware
+        run: |
+          tar -czvf /tmp/esp8266-${{matrix.package}}.tar.gz esp8266-${{matrix.package}}
+        shell: bash
 
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/requirements.txt
-        mkdir build
-        echo -e "{\"platform\": \"PLATFORM_ESP8266\", \"module\": \"WROOM-5V2L\", \"silence\": 0}" > build/module_info.json
-        ./build.py reconfigure || echo "skip exception"
-      shell: bash
-    - name: Install dependencies
-      env:
-        IDF_PATH: ${{ github.workspace }}/esp-idf
-      run: |
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/esp-idf/requirements.txt
-    - name: Compiling
-      run: |
-        python ./esp-idf/tools/idf_tools.py --non-interactive install && eval "$(python ./esp-idf/tools/idf_tools.py --non-interactive export)" || exit 1
-        python ./esp-idf/tools/idf_tools.py export --prefer-system
-        ./build.py build
-        upload_dir=esp8266-wroom-5V2L-at
-        mkdir -p $upload_dir $upload_dir/bootloader $upload_dir/partition_table $upload_dir/customized_partitions $upload_dir/factory
-        cp build/flash_project_args $upload_dir/download.config
-        cp sdkconfig $upload_dir/
-        cp build/*.bin $upload_dir/
-        cp build/*.elf $upload_dir/
-        cp build/*.map $upload_dir/
-        cp build/bootloader/*.bin $upload_dir/bootloader/
-        cp build/partition_table/*.bin $upload_dir/partition_table/
-        cp build/customized_partitions/*.bin $upload_dir/customized_partitions/
-        cp build/flasher_args.json $upload_dir/
-        cp build/flash_project_args $upload_dir/download.config
-        cp build/factory/* $upload_dir/factory
-      shell: bash
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4.4.3
-      with:
-        name: esp8266-wroom-5V2L-at
-        path: esp8266-wroom-5V2L-at
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        id: release
+        with:
+          name: "build-results"
+          draft: true
+          files: |
+            /tmp/esp8266-${{matrix.package}}.tar.gz
 
-  build-esp8285-1MB-at:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4.2.0
-    - name: clone esp-idf
-      env:
-        AT_OTA_TOKEN_WROOM_02_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-        AT_OTA_TOKEN_WROOM_S2_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_S2_1024_1024 }}
-        AT_OTA_TOKEN_WROOM_5V2L: ${{ secrets.AT_OTA_TOKEN_WROOM_5V2L }}
-        AT_OTA_TOKEN_ESP8266_1MB: ${{ secrets.AT_OTA_TOKEN_ESP8266_1MB }}
-        AT_OTA_TOKEN_WROOM_02_N_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-      run: |
-        cd components/at/private_include
-        rm -f at_ota_token.h
-        echo -e "#pragma once" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        cd -
-
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/requirements.txt
-        mkdir build
-        echo -e "{\"platform\": \"PLATFORM_ESP8266\", \"module\": \"ESP8266_1MB\", \"silence\": 0}" > build/module_info.json
-        ./build.py reconfigure || echo "skip exception"
-      shell: bash
-    - name: Install dependencies
-      env:
-        IDF_PATH: ${{ github.workspace }}/esp-idf
-      run: |
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/esp-idf/requirements.txt
-    - name: Compiling
-      run: |
-        python ./esp-idf/tools/idf_tools.py --non-interactive install && eval "$(python ./esp-idf/tools/idf_tools.py --non-interactive export)" || exit 1
-        python ./esp-idf/tools/idf_tools.py export --prefer-system
-        ./build.py build
-        upload_dir=esp8285-1MB-at
-        mkdir -p $upload_dir $upload_dir/bootloader $upload_dir/partition_table $upload_dir/customized_partitions $upload_dir/factory
-        cp build/flash_project_args $upload_dir/download.config
-        cp sdkconfig $upload_dir/
-        cp build/*.bin $upload_dir/
-        cp build/*.elf $upload_dir/
-        cp build/*.map $upload_dir/
-        cp build/bootloader/*.bin $upload_dir/bootloader/
-        cp build/partition_table/*.bin $upload_dir/partition_table/
-        cp build/customized_partitions/*.bin $upload_dir/customized_partitions/
-        cp build/flasher_args.json $upload_dir/
-        cp build/flash_project_args $upload_dir/download.config
-        cp build/factory/* $upload_dir/factory
-      shell: bash
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4.4.3
-      with:
-        name: esp8285-1MB-at
-        path: esp8285-1MB-at
-
-  build-esp8266-wroom02-n-at:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4.2.0
-    - name: clone esp-idf
-      env:
-        AT_OTA_TOKEN_WROOM_02_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-        AT_OTA_TOKEN_WROOM_S2_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_S2_1024_1024 }}
-        AT_OTA_TOKEN_WROOM_5V2L: ${{ secrets.AT_OTA_TOKEN_WROOM_5V2L }}
-        AT_OTA_TOKEN_ESP8266_1MB: ${{ secrets.AT_OTA_TOKEN_ESP8266_1MB }}
-        AT_OTA_TOKEN_WROOM_02_N_1024_1024: ${{ secrets.AT_OTA_TOKEN_WROOM_02_AT_EN18031 }}
-      run: |
-        cd components/at/private_include
-        rm -f at_ota_token.h
-        echo -e "#pragma once" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02 \"$AT_OTA_TOKEN_WROOM_02_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_S2 \"$AT_OTA_TOKEN_WROOM_S2_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_5V2L \"$AT_OTA_TOKEN_WROOM_5V2L\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_ESP8266_1MB \"$AT_OTA_TOKEN_ESP8266_1MB\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        echo -e "#define CONFIG_ESP_AT_OTA_SSL_TOKEN_WROOM_02_N \"$AT_OTA_TOKEN_WROOM_02_N_1024_1024\"" >> at_ota_token.h
-        cd -
-
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/requirements.txt
-        mkdir build
-        echo -e "{\"platform\": \"PLATFORM_ESP8266\", \"module\": \"WROOM-02-N\", \"silence\": 0}" > build/module_info.json
-        ./build.py reconfigure || echo "skip exception"
-      shell: bash
-    - name: Install dependencies
-      env:
-        IDF_PATH: ${{ github.workspace }}/esp-idf
-      run: |
-        python -m pip install --user -r /home/runner/work/esp-at/esp-at/esp-idf/requirements.txt
-    - name: Compiling
-      run: |
-        python ./esp-idf/tools/idf_tools.py --non-interactive install && eval "$(python ./esp-idf/tools/idf_tools.py --non-interactive export)" || exit 1
-        python ./esp-idf/tools/idf_tools.py export --prefer-system
-        ./build.py build
-        upload_dir=esp8266-wroom02-n-at
-        mkdir -p $upload_dir $upload_dir/bootloader $upload_dir/partition_table $upload_dir/customized_partitions $upload_dir/factory
-        cp build/flash_project_args $upload_dir/download.config
-        cp sdkconfig $upload_dir/
-        cp build/*.bin $upload_dir/
-        cp build/*.elf $upload_dir/
-        cp build/*.map $upload_dir/
-        cp build/bootloader/*.bin $upload_dir/bootloader/
-        cp build/partition_table/*.bin $upload_dir/partition_table/
-        cp build/customized_partitions/*.bin $upload_dir/customized_partitions/
-        cp build/flasher_args.json $upload_dir/
-        cp build/flash_project_args $upload_dir/download.config
-        cp build/factory/* $upload_dir/factory
-      shell: bash
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v4.4.3
-      with:
-        name: esp8266-wroom02-n-at
-        path: esp8266-wroom02-n-at

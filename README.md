@@ -26,3 +26,7 @@ Additionally, `ESP8266_1MB-UNREMAP` is provided, with its RX and TX pins being G
 Therefore, modules like the ESP-01S can be directly flashed to obtain features such as MQTT that are not supported by the original firmware or earlier firmware.
 
 Please refer to the [official instructions](https://docs.espressif.com/projects/esp-at/en/release-v2.3.0.0_esp8266/Compile_and_Develop/How_to_understand_the_differences_of_each_type_of_module.html) for detailed guidance.
+
+除此之外，还提供了`ESP8266_1MB-UNREMAP-HTTP-ONLY`，其与`ESP8266_1MB-UNREMAP`的区别在于添加HTTP指令的支持，并移除了TLS支持。该版本固件没有经过测试，不建议用于生产环境。
+
+In addition, `ESP8266_1MB-UNREMAP-HTTP-ONLY` is also available. The difference between `ESP8266_1MB-UNREMAP` and `ESP8266_1MB-UNREMAP` is the addition of HTTP command support and the removal of TLS support. This firmware version has not been tested and is not recommended for production environments.

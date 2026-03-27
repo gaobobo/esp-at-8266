@@ -21,7 +21,7 @@ jobs:
           - "ESP8266_1MB"
           - "WROOM-02-N"
           - "ESP8266_1MB-UNREMAP"
-          - "ESP8266_1MB-UNREMAP-NO-TLS-HTTP-ONLY"
+          - "ESP8266_1MB-UNREMAP-HTTP-ONLY"
 
     steps:
       - name: checkout repo

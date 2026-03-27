@@ -13,8 +13,8 @@ CONFIG_ESPTOOLPY_MONITOR_BAUD_115200B=y
 
 # Partition Table
 CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="module_config/module_esp8266_1mb-unremap-no-tls-http-only/partitions_at.csv"
-CONFIG_PARTITION_TABLE_FILENAME="module_config/module_esp8266_1mb-unremap-no-tls-http-only/partitions_at.csv"
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="module_config/module_esp8266_1mb-unremap-http-only/partitions_at.csv"
+CONFIG_PARTITION_TABLE_FILENAME="module_config/module_esp8266_1mb-unremap-http-only/partitions_at.csv"
 CONFIG_COMPILER_OPTIMIZATION_LEVEL_DEBUG=y
 
 # PHY
@@ -22,7 +22,7 @@ CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=n
 CONFIG_ESP8266_PHY_MAX_WIFI_TX_POWER=21
 
 # AT Customized Partitions
-CONFIG_AT_CUSTOMIZED_PARTITION_TABLE_FILE="module_config/module_esp8266_1mb-unremap-no-tls-http-only/at_customize.csv"
+CONFIG_AT_CUSTOMIZED_PARTITION_TABLE_FILE="module_config/module_esp8266_1mb-unremap-http-only/at_customize.csv"
 CONFIG_AT_CUSTOMIZED_PARTITION_TABLE_OFFSET=0x18000
 
 # ESP8266-specific
